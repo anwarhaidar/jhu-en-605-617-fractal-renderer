@@ -4,11 +4,11 @@
 // and OpenGL for real-time rendering. Supports multiple fractal types, color
 // schemes, and interactive navigation with mouse/keyboard controls.
 //
-// Performance: ~600-700 FPS @ 1920x1080 on RTX Pro 6000 (Blackwell)
+// Performance: ~700+ FPS @ 1920x1080 on RTX Pro 6000 (Blackwell)
 
 // OpenGL/GLFW libraries for windowing and rendering
-#include <GL/glew.h>        // OpenGL Extension Wrangler - modern OpenGL features
-#include <GLFW/glfw3.h>     // Cross-platform windowing and input handling
+#include <GL/glew.h>             // OpenGL Extension Wrangler - modern OpenGL features
+#include <GLFW/glfw3.h>          // Cross-platform windowing and input handling
 
 // CUDA libraries for GPU computation
 #include <cuda_runtime.h>       // CUDA runtime API
@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <iostream>
-#include <chrono>       // High-resolution timing for FPS counter
+#include <chrono>              // High-resolution timing for FPS counter
 #include <cstring>
 
 // ============================================================================
@@ -91,6 +91,7 @@ private:
     // Rendering state
     bool auto_animate;          // Continuous animation mode (toggled by Space)
     bool needs_update;          // Flag to trigger frame re-render
+    bool benchmark_mode;        // Force continuous recomputation for true FPS measurement
     
     // Performance monitoring
     std::chrono::high_resolution_clock::time_point last_frame_time;
@@ -100,9 +101,10 @@ private:
     // Print control menu to console
     void print_menu() {
         printf("\n=== CUDA Fractal Explorer ===\n");
-        printf("Controls: Mouse drag=pan, wheel=zoom | 1-4=fractals | QWERTY=colors\n");
+        printf("Controls: Mouse drag=pan, wheel=zoom | 1-4=fractals | Q/W/E/R/T/Y=colors\n");
         printf("          +/- =iterations | 0=min iter (64) | 9=max iter (2048) | Space=animate\n");
-        printf("          Arrows=pan | C=center | V=reset zoom | F1=reset view/colors/animation\n");
+        printf("          Arrows=pan | C=center | V=reset zoom | X=reset view/colors/animation\n");
+        printf("          B=benchmark mode (shows TRUE computational FPS)\n");
         printf("          M=show menu | J/K/I/L=Julia params | ESC=exit\n\n");
     }
     
@@ -115,7 +117,7 @@ public:
           julia_cx(-0.7), julia_cy(0.27015),
           max_iterations(256), fractal_type(0), color_scheme(1),
           animation_time(0.0), mouse_dragging(false),
-          auto_animate(false), needs_update(true), fps(0.0f), frame_count(0) {
+          auto_animate(false), needs_update(true), benchmark_mode(false), fps(0.0f), frame_count(0) {
         
         initialize_opengl();
         initialize_cuda_gl_interop();
@@ -158,6 +160,10 @@ public:
         
         // Make OpenGL context current for this thread
         glfwMakeContextCurrent(window);
+        
+        // DISABLE V-SYNC to show true GPU performance (not limited by monitor refresh)
+        glfwSwapInterval(0);  // 0 = V-Sync OFF, 1 = V-Sync ON
+        
         glfwSetWindowUserPointer(window, this);  // Store 'this' for callbacks
         
         // Initialize GLEW to load OpenGL extensions
@@ -282,6 +288,16 @@ public:
                 printf("Animation: %s\n", auto_animate ? "ON" : "OFF");
                 break;
                 
+            case GLFW_KEY_B:
+                benchmark_mode = !benchmark_mode;
+                printf("Benchmark Mode: %s - Showing %s FPS\n", 
+                       benchmark_mode ? "ON" : "OFF",
+                       benchmark_mode ? "COMPUTATIONAL" : "DISPLAY");
+                if (benchmark_mode) {
+                    printf("WARNING: This forces recomputation every frame (lower FPS but shows true GPU performance)\n");
+                }
+                break;
+                
             case GLFW_KEY_M:
                 print_menu();
                 break;
@@ -304,7 +320,7 @@ public:
             case GLFW_KEY_LEFT: x_center -= 0.1 / zoom; needs_update = true; break;
             case GLFW_KEY_RIGHT: x_center += 0.1 / zoom; needs_update = true; break;
             
-            case GLFW_KEY_F1:
+            case GLFW_KEY_X:
                 // Full reset (keeps current fractal type and iterations)
                 x_center = (fractal_type == 0 || fractal_type == 3) ? -0.5 : 0.0;  // Center based on fractal
                 y_center = 0.0;
@@ -441,7 +457,8 @@ public:
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, window_width, window_height,
                             GL_RGB, GL_UNSIGNED_BYTE, h_image);
             
-            needs_update = false;
+            // In benchmark mode, force recomputation every frame to measure true computational FPS
+            needs_update = benchmark_mode;
         }
         
         // Render full-screen textured quad with fractal image
@@ -477,8 +494,8 @@ public:
             // Display FPS, zoom level, and iteration count in title bar
             char title[256];
             snprintf(title, sizeof(title), 
-                     "CUDA Fractal Explorer - %.0f FPS | Zoom: %.2e | Iter: %d", 
-                     fps, zoom, max_iterations);
+                     "CUDA Fractal Explorer - %.0f %s FPS | Zoom: %.2e | Iter: %d", 
+                     fps, benchmark_mode ? "COMPUTE" : "DISPLAY", zoom, max_iterations);
             glfwSetWindowTitle(window, title);
         }
     }
