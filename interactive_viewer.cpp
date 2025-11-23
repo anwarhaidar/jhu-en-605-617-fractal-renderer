@@ -4,7 +4,7 @@
 // and OpenGL for real-time rendering. Supports multiple fractal types, color
 // schemes, and interactive navigation with mouse/keyboard controls.
 //
-// Performance: ~700+ FPS @ 1920x1080 on RTX Pro 6000 (Blackwell)
+// Performance: ~900+ FPS @ 1920x1080 on RTX Pro 6000 (Blackwell) (iteration 64)
 
 // OpenGL/GLFW libraries for windowing and rendering
 #include <GL/glew.h>             // OpenGL Extension Wrangler - modern OpenGL features
@@ -254,43 +254,43 @@ public:
                 glfwSetWindowShouldClose(window, GLFW_TRUE);
                 break;
                 
-            case GLFW_KEY_1: fractal_type = 0; needs_update = true; printf("Mandelbrot\n"); break;
-            case GLFW_KEY_2: fractal_type = 1; needs_update = true; printf("Julia\n"); break;
-            case GLFW_KEY_3: fractal_type = 2; needs_update = true; printf("Burning Ship\n"); break;
-            case GLFW_KEY_4: fractal_type = 3; needs_update = true; printf("Tricorn\n"); break;
+            case GLFW_KEY_1: fractal_type = 0; needs_update = true; printf("Key: 1 |Mandelbrot\n"); break;
+            case GLFW_KEY_2: fractal_type = 1; needs_update = true; printf("Key: 2 |Julia\n"); break;
+            case GLFW_KEY_3: fractal_type = 2; needs_update = true; printf("Key: 3 |Burning Ship\n"); break;
+            case GLFW_KEY_4: fractal_type = 3; needs_update = true; printf("Key: 4 |Tricorn\n"); break;
             
-            case GLFW_KEY_0: max_iterations = 64; needs_update = true; printf("Iterations: %d (min)\n", max_iterations); break;
-            case GLFW_KEY_9: max_iterations = 2048; needs_update = true; printf("Iterations: %d (max)\n", max_iterations); break;
+            case GLFW_KEY_0: max_iterations = 64; needs_update = true; printf("Key: 0 |Iterations: %d (min)\n", max_iterations); break;
+            case GLFW_KEY_9: max_iterations = 2048; needs_update = true; printf("Key: 9 |Iterations: %d (max)\n", max_iterations); break;
             
-            case GLFW_KEY_Q: color_scheme = 0; needs_update = true; break;
-            case GLFW_KEY_W: color_scheme = 1; needs_update = true; break;
-            case GLFW_KEY_E: color_scheme = 2; needs_update = true; break;
-            case GLFW_KEY_R: color_scheme = 3; needs_update = true; break;
-            case GLFW_KEY_T: color_scheme = 4; needs_update = true; break;
-            case GLFW_KEY_Y: color_scheme = 5; needs_update = true; break;
+            case GLFW_KEY_Q: color_scheme = 0; needs_update = true; printf("Key: Q | Color: GRAYSCALE\n"); break;
+            case GLFW_KEY_W: color_scheme = 1; needs_update = true; printf("Key: W | Color: HSV_RAINBOW\n"); break;
+            case GLFW_KEY_E: color_scheme = 2; needs_update = true; printf("Key: E | Color: FIRE\n"); break;
+            case GLFW_KEY_R: color_scheme = 3; needs_update = true; printf("Key: R | Color: OCEAN\n"); break;
+            case GLFW_KEY_T: color_scheme = 4; needs_update = true; printf("Key: T | Color: PSYCHEDELIC\n"); break;
+            case GLFW_KEY_Y: color_scheme = 5; needs_update = true; printf("Key: Y | Color: ELECTRIC\n"); break;
             
             case GLFW_KEY_EQUAL:
             case GLFW_KEY_KP_ADD:
                 max_iterations = std::min(2048, max_iterations + 64);
                 needs_update = true;
-                printf("Iterations: %d\n", max_iterations);
+                printf("Key: + | Iterations: %d\n", max_iterations);
                 break;
                 
             case GLFW_KEY_MINUS:
             case GLFW_KEY_KP_SUBTRACT:
                 max_iterations = std::max(64, max_iterations - 64);
                 needs_update = true;
-                printf("Iterations: %d\n", max_iterations);
+                printf("Key: - | Iterations: %d\n", max_iterations);
                 break;
                 
             case GLFW_KEY_SPACE:
                 auto_animate = !auto_animate;
-                printf("Animation: %s\n", auto_animate ? "ON" : "OFF");
+                printf("Key: Space | Animation: %s\n", auto_animate ? "ON" : "OFF");
                 break;
                 
             case GLFW_KEY_B:
                 benchmark_mode = !benchmark_mode;
-                printf("Benchmark Mode: %s - Showing %s FPS\n", 
+                printf("Key: B | Benchmark Mode: %s - Showing %s FPS\n", 
                        benchmark_mode ? "ON" : "OFF",
                        benchmark_mode ? "COMPUTATIONAL" : "DISPLAY");
                 if (benchmark_mode) {
@@ -306,19 +306,19 @@ public:
                 x_center = (fractal_type == 0 || fractal_type == 3) ? -0.5 : 0.0;
                 y_center = 0.0;
                 needs_update = true;
-                printf("Centered\n");
+                printf("Key: C | Centered\n");
                 break;
                 
             case GLFW_KEY_V:
                 zoom = 1.0;
                 needs_update = true;
-                printf("Zoom reset\n");
+                printf("Key: V | Zoom reset\n");
                 break;
                 
-            case GLFW_KEY_UP: y_center += 0.1 / zoom; needs_update = true; break;
-            case GLFW_KEY_DOWN: y_center -= 0.1 / zoom; needs_update = true; break;
-            case GLFW_KEY_LEFT: x_center -= 0.1 / zoom; needs_update = true; break;
-            case GLFW_KEY_RIGHT: x_center += 0.1 / zoom; needs_update = true; break;
+            case GLFW_KEY_UP: y_center += 0.1 / zoom; needs_update = true; printf("Key: UP | Pan up\n"); break;
+            case GLFW_KEY_DOWN: y_center -= 0.1 / zoom; needs_update = true; printf("Key: DOWN | Pan down\n"); break;
+            case GLFW_KEY_LEFT: x_center -= 0.1 / zoom; needs_update = true; printf("Key: LEFT | Pan left\n"); break;
+            case GLFW_KEY_RIGHT: x_center += 0.1 / zoom; needs_update = true; printf("Key: RIGHT | Pan right\n"); break;
             
             case GLFW_KEY_X:
                 // Full reset (keeps current fractal type and iterations)
@@ -333,20 +333,20 @@ public:
                 auto_animate = false;   // Turn off animation
                 animation_time = 0.0;   // Reset animation time
                 needs_update = true;
-                printf("Reset view/colors/animation\n");
+                printf("Key: X | Reset view/colors/animation\n");
                 break;
                 
             case GLFW_KEY_J:
-                if (fractal_type == 1) { julia_cx -= 0.01; needs_update = true; }
+                if (fractal_type == 1) { julia_cx -= 0.01; needs_update = true; printf("Key: J | Param Julia\n");}
                 break;
             case GLFW_KEY_L:
-                if (fractal_type == 1) { julia_cx += 0.01; needs_update = true; }
+                if (fractal_type == 1) { julia_cx += 0.01; needs_update = true; printf("Key: L | Param Julia\n");}
                 break;
             case GLFW_KEY_K:
-                if (fractal_type == 1) { julia_cy -= 0.01; needs_update = true; }
+                if (fractal_type == 1) { julia_cy -= 0.01; needs_update = true;  printf("Key: K | Param Julia\n");}   
                 break;
             case GLFW_KEY_I:
-                if (fractal_type == 1) { julia_cy += 0.01; needs_update = true; }
+                if (fractal_type == 1) { julia_cy += 0.01; needs_update = true; printf("Key: I | Param Julia\n");}
                 break;
         }
     }

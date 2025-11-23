@@ -5,6 +5,8 @@
 #include <math.h>
 #include <string.h>
 #include <time.h>
+#include <sys/stat.h>
+#include <errno.h>
 
 // Fractal types
 typedef enum {
@@ -125,8 +127,8 @@ __device__ uchar3 apply_color_scheme(int iteration, int max_iter, ColorScheme sc
     );
 }
 
-// Main Mandelbrot kernel
-__global__ void mandelbrot_kernel_optimized(uchar3* image, int width, int height,
+// Main fractal kernel
+__global__ void fractal_kernel_optimized(uchar3* image, int width, int height,
                                            FractalParams params) {
     int px = blockIdx.x * blockDim.x + threadIdx.x;
     int py = blockIdx.y * blockDim.y + threadIdx.y;
@@ -212,7 +214,7 @@ __global__ void mandelbrot_kernel_optimized(uchar3* image, int width, int height
 }
 
 // Single precision kernel for performance comparison
-__global__ void mandelbrot_kernel_float(uchar3* image, int width, int height,
+__global__ void fractal_kernel_float(uchar3* image, int width, int height,
                                         float x_center, float y_center, float zoom,
                                         int max_iterations, ColorScheme color_scheme) {
     int px = blockIdx.x * blockDim.x + threadIdx.x;
@@ -242,7 +244,19 @@ __global__ void mandelbrot_kernel_float(uchar3* image, int width, int height,
     image[index] = color;
 }
 
-// Save image as PPM format
+// Create output directory if it doesn't exist
+void ensure_output_directory(const char* dir_name) {
+    struct stat st = {0};
+    if (stat(dir_name, &st) == -1) {
+        if (mkdir(dir_name, 0755) == 0) {
+            printf("Created output directory: %s\n", dir_name);
+        } else {
+            printf("Warning: Could not create directory %s: %s\n", dir_name, strerror(errno));
+        }
+    }
+}
+
+// Save image as PPM format (verbose version)
 void save_ppm(const char* filename, uchar3* image, int width, int height) {
     FILE* file = fopen(filename, "wb");
     if (!file) {
@@ -255,6 +269,19 @@ void save_ppm(const char* filename, uchar3* image, int width, int height) {
     fclose(file);
     
     printf("Image saved: %s (%dx%d)\n", filename, width, height);
+}
+
+// Save image as PPM format (quiet version for benchmarks)
+void save_ppm_quiet(const char* filename, uchar3* image, int width, int height) {
+    FILE* file = fopen(filename, "wb");
+    if (!file) {
+        printf("Error: Could not open file %s\n", filename);
+        return;
+    }
+    
+    fprintf(file, "P6\n%d %d\n255\n", width, height);
+    fwrite(image, sizeof(uchar3), width * height, file);
+    fclose(file);
 }
 
 // Error checking macro
@@ -270,6 +297,9 @@ void save_ppm(const char* filename, uchar3* image, int width, int height) {
 // Animation frame generation
 void generate_zoom_animation(const char* base_filename, int width, int height,
                            double center_x, double center_y, int num_frames) {
+    // Ensure output directory exists
+    ensure_output_directory("output");
+    
     size_t image_size = width * height * sizeof(uchar3);
     uchar3* h_image = (uchar3*)malloc(image_size);
     uchar3* d_image;
@@ -291,14 +321,14 @@ void generate_zoom_animation(const char* base_filename, int width, int height,
         params.color_scheme = HSV_RAINBOW;
         params.animation_time = frame * 0.1;
         
-        mandelbrot_kernel_optimized<<<grid_size, block_size>>>(
+        fractal_kernel_optimized<<<grid_size, block_size>>>(
             d_image, width, height, params);
         CUDA_CHECK(cudaDeviceSynchronize());
         
         CUDA_CHECK(cudaMemcpy(h_image, d_image, image_size, cudaMemcpyDeviceToHost));
         
-        char filename[256];
-        sprintf(filename, "%s_frame_%04d.ppm", base_filename, frame);
+        char filename[512];
+        sprintf(filename, "output/%s_frame_%04d.ppm", base_filename, frame);
         save_ppm(filename, h_image, width, height);
         
         printf("Generated frame %d/%d\r", frame + 1, num_frames);
@@ -312,7 +342,7 @@ void generate_zoom_animation(const char* base_filename, int width, int height,
 
 
 // CPU version for comparison
-void mandelbrot_cpu(uchar3* image, int width, int height, FractalParams params) {
+void fractal_cpu(uchar3* image, int width, int height, FractalParams params) {
     for (int py = 0; py < height; py++) {
         for (int px = 0; px < width; px++) {
             double range = 4.0 / params.zoom;
@@ -381,7 +411,7 @@ int main(int argc, char** argv) {
         
         // CPU timing using simple clock
         clock_t start_cpu = clock();
-        mandelbrot_cpu(h_image, width, height, params);
+        fractal_cpu(h_image, width, height, params);
         clock_t end_cpu = clock();
         float cpu_time = ((float)(end_cpu - start_cpu) / CLOCKS_PER_SEC) * 1000;
         
@@ -390,7 +420,7 @@ int main(int argc, char** argv) {
         cudaEventCreate(&start);
         cudaEventCreate(&stop);
         cudaEventRecord(start);
-        mandelbrot_kernel_optimized<<<grid_size, block_size>>>(d_image, width, height, params);
+        fractal_kernel_optimized<<<grid_size, block_size>>>(d_image, width, height, params);
         cudaEventRecord(stop);
         cudaEventSynchronize(stop);
         float gpu_time;
@@ -430,7 +460,7 @@ int main(int argc, char** argv) {
             FractalParams params_double = {-0.5, 0.0, 1.0, -0.7, 0.27015, 256, MANDELBROT, HSV_RAINBOW, 0.0};
             
             CUDA_CHECK(cudaEventRecord(start));
-            mandelbrot_kernel_optimized<<<test_grid_size, test_block_size>>>(d_image, width, height, params_double);
+            fractal_kernel_optimized<<<test_grid_size, test_block_size>>>(d_image, width, height, params_double);
             CUDA_CHECK(cudaEventRecord(stop));
             CUDA_CHECK(cudaEventSynchronize(stop));
             
@@ -439,7 +469,7 @@ int main(int argc, char** argv) {
             
             // Test single precision
             CUDA_CHECK(cudaEventRecord(start));
-            mandelbrot_kernel_float<<<test_grid_size, test_block_size>>>(d_image, width, height, -0.5f, 0.0f, 1.0f, 256, HSV_RAINBOW);
+            fractal_kernel_float<<<test_grid_size, test_block_size>>>(d_image, width, height, -0.5f, 0.0f, 1.0f, 256, HSV_RAINBOW);
             CUDA_CHECK(cudaEventRecord(stop));
             CUDA_CHECK(cudaEventSynchronize(stop));
             
@@ -461,14 +491,22 @@ int main(int argc, char** argv) {
     // Generate sample images for all fractal types and color schemes
     printf("\n=== Generating Sample Images ===\n");
     
+    // Ensure output directory exists
+    ensure_output_directory("output");
+    
     FractalType fractals[] = {MANDELBROT, JULIA, BURNING_SHIP, TRICORN};
     const char* fractal_names[] = {"mandelbrot", "julia", "burning_ship", "tricorn"};
     
     ColorScheme colors[] = {GRAYSCALE, HSV_RAINBOW, FIRE, OCEAN, PSYCHEDELIC, ELECTRIC};
     const char* color_names[] = {"grayscale", "rainbow", "fire", "ocean", "psychedelic", "electric"};
     
+    int total_images = 4 * 6; // 4 fractals × 6 color schemes
+    int current_image = 0;
+    
     for (int f = 0; f < 4; f++) {
         for (int c = 0; c < 6; c++) {
+            current_image++;
+            
             FractalParams params;
             params.x_center = (fractals[f] == MANDELBROT || fractals[f] == TRICORN) ? -0.5 : 0.0;
             params.y_center = 0.0;
@@ -480,24 +518,28 @@ int main(int argc, char** argv) {
             params.color_scheme = colors[c];
             params.animation_time = 0.0;
             
-            mandelbrot_kernel_optimized<<<grid_size, block_size>>>(
+            fractal_kernel_optimized<<<grid_size, block_size>>>(
                 d_image, width, height, params);
             CUDA_CHECK(cudaDeviceSynchronize());
             
             CUDA_CHECK(cudaMemcpy(h_image, d_image, image_size, cudaMemcpyDeviceToHost));
             
-            char filename[256];
-            sprintf(filename, "%s_%s.ppm", fractal_names[f], color_names[c]);
-            save_ppm(filename, h_image, width, height);
+            char filename[512];
+            sprintf(filename, "output/%s_%s.ppm", fractal_names[f], color_names[c]);
+            save_ppm_quiet(filename, h_image, width, height);
             
-            printf("Generated: %s\n", filename);
+            // Show progress without listing every file
+            printf("\rGenerating images... %d/%d", current_image, total_images);
+            fflush(stdout);
         }
     }
+    
+    printf("\nSample images generated in output/ directory (%d files)\n", total_images);
     
     // Generate zoom animation
     if (generate_animation) {
         printf("\n=== Generating Zoom Animation ===\n");
-        generate_zoom_animation("mandelbrot_zoom", width/2, height/2, 
+        generate_zoom_animation("fractal_zoom", width/2, height/2, 
                                -0.7453, 0.11307, 50);
     }
     
@@ -524,6 +566,6 @@ extern "C" void launch_fractal_kernel(unsigned char* d_image, int width, int hei
     
     
     // Call existing kernel
-    mandelbrot_kernel_optimized<<<grid_size, block_size>>>(d_image_uchar3, width, height, params);
+    fractal_kernel_optimized<<<grid_size, block_size>>>(d_image_uchar3, width, height, params);
     cudaDeviceSynchronize();
 }

@@ -106,18 +106,32 @@ fractal_engine_lib.o: fractal_engine.cu
 interactive_viewer.o: interactive_viewer.cpp
 	$(NVCC) $(NVCC_FLAGS) -x c++ -c -o $@ $<
 
-clean:
-	rm -f *.o $(CONSOLE_APP) $(INTERACTIVE_APP)
-	rm -f *.ppm
+# Cleaning targets
+clean: clean-build clean-output
+	@echo "Full cleanup complete"
+
+clean-build:
+	@echo "Removing build files..."
+	@rm -f *.o $(CONSOLE_APP) $(INTERACTIVE_APP)
+	@rm -f *.ppm  # Legacy PPM files in root directory
+
+clean-output:
+	@echo "Removing generated images and animations..."
+	@rm -rf output/
+	@echo "Output directory removed"
 
 # Quick run targets
 run: $(CONSOLE_APP)
+	@echo "Running console fractal generator..."
 	./$(CONSOLE_APP)
 
 run-viewer: $(INTERACTIVE_APP)
+	@echo "Starting interactive fractal viewer..."
 	./$(INTERACTIVE_APP)
 
 run-benchmark: $(CONSOLE_APP)
+	@echo "Running performance benchmarks..."
+	@echo "Generated PPM files will be saved to: output/"
 	./$(CONSOLE_APP) --benchmark
 
 # Check dependencies and GPU detection
@@ -132,6 +146,8 @@ else
 endif
 	@echo "GPU Compute Capability: $(DETECTED_CC)"
 	@echo "Selected Architecture: $(CUDA_ARCH)"
+	@echo ""
+	@echo "Output Directory: ./output/ (auto-created)"
 	@echo ""
 	@echo "CUDA Version:"
 	@nvcc --version || echo "CUDA not found"
@@ -162,19 +178,43 @@ endif
 	@echo "  6.2 → sm_62 (Jetson TX2)"
 	@echo ""
 
+# Show generated output files
+show-output:
+	@echo ""
+	@echo "=== Generated Output Files ==="
+	@if [ -d "output" ]; then \
+		echo "Directory: ./output/"; \
+		ls -la output/ 2>/dev/null || echo "Output directory exists but is empty"; \
+	else \
+		echo "No output directory found. Run 'make run-benchmark' to generate files."; \
+	fi
+	@echo ""
+
 help:
 	@echo ""
 	@echo "CUDA Fractal Renderer - Cross-Platform"
 	@echo "Usage: make [target]"
 	@echo ""
-	@echo "Targets:"
+	@echo "Build Targets:"
 	@echo "  all           - Build console and viewer"
-	@echo "  clean         - Remove build files"
+	@echo "  clean         - Remove build files and generated output"
+	@echo "  clean-build   - Remove only build files (keep generated images)"
+	@echo "  clean-output  - Remove only generated images (keep build files)"
+	@echo ""
+	@echo "Run Targets:"
 	@echo "  run           - Run console renderer"
 	@echo "  run-viewer    - Run interactive viewer"
-	@echo "  run-benchmark - Run performance tests"
+	@echo "  run-benchmark - Run performance tests (generates 24+ PPM files)"
+	@echo ""
+	@echo "Info Targets:"
 	@echo "  check-deps    - Verify dependencies and GPU detection"
+	@echo "  show-output   - List generated output files"
 	@echo "  help          - Show this help"
+	@echo ""
+	@echo "Output Organization:"
+	@echo "  - All generated PPM files saved to: ./output/"
+	@echo "  - Directory created automatically on first run"
+	@echo "  - Use 'make clean-output' to remove generated files only"
 	@echo ""
 	@echo "Override GPU architecture if needed:"
 	@echo "  make CUDA_ARCH=sm_120 all  # Blackwell (12.0)"
@@ -191,4 +231,4 @@ endif
 	@echo ""
 	
 
-.PHONY: all clean run run-viewer run-benchmark check-deps help
+.PHONY: all clean clean-build clean-output run run-viewer run-benchmark check-deps show-output help

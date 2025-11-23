@@ -16,6 +16,7 @@ High-performance fractal rendering using CUDA with an interactive OpenGL viewer.
 - Performance benchmarking mode to measure true GPU computational speed
 - Both single and double precision support
 - Display vs. Compute FPS measurement modes
+- Organized output management with automatic directory creation
 
 ## Requirements
 
@@ -68,9 +69,15 @@ make run-viewer
 
 ### Console Renderer
 ```bash
-make run              # Generate sample images
-make run-benchmark    # Run performance tests
+make run              # Generate sample images to output/ directory
+make run-benchmark    # Run performance tests (saves 24 PPM files to output/)
 ```
+
+**File Organization:**
+- All generated PPM files are automatically saved to `output/` directory
+- Directory is created automatically on first run
+- Use `make show-output` to list generated files
+- Use `make clean-output` to remove only generated images
 
 ## Performance Notes
 
@@ -84,7 +91,7 @@ make run-benchmark    # Run performance tests
 - Maximum useful zoom: 10^14 (100 trillion times magnification) before precision limits
 
 **Display Performance (Benchmark Mode OFF):**
-- **5700+ FPS** - Pure OpenGL texture display throughput
+- **10,000+ FPS** - Pure OpenGL texture display throughput
 - Shows GPU memory bandwidth is not the bottleneck
 - Drops to ~100 FPS during animation (due to continuous recomputation)
 - Monitor limitation: 60Hz refresh rate only displays 60 FPS regardless of compute speed
@@ -140,29 +147,96 @@ nvidia-smi --query-gpu=compute_cap --format=csv
 
 Build with specific architecture:
 ```bash
-
 make CUDA_ARCH=sm_75 all   # For RTX 2080 (Turing)
 make CUDA_ARCH=sm_86 all   # For RTX 3080/3090 (Ampere)
 make CUDA_ARCH=sm_87 all   # For Jetson Orin (Ampere)
 make CUDA_ARCH=sm_89 all   # For RTX 4090 (Ada Lovelace)
 make CUDA_ARCH=sm_100 all  # For RTX Pro 6000 (Blackwell fallback)
 make CUDA_ARCH=sm_120 all  # For RTX Pro 6000 (Blackwell CC 12.0)
+```
 
+## Output Management
+
+### Generated Files
+All benchmark and animation files are organized in the `output/` directory:
+```bash
+make run-benchmark       # Generates 24 fractal images in output/
+make show-output        # List generated files
+```
+
+### Cleaning Options
+```bash
+make clean              # Remove everything (builds + output)
+make clean-build        # Keep generated images, remove executables  
+make clean-output       # Keep executables, remove generated images
+```
+
+### File Conversion
+Convert large PPM files to smaller formats:
+```bash
+# Convert all PPM files to PNG (requires ImageMagick)
+for f in output/*.ppm; do convert "$f" "${f%.ppm}.png"; done
+
+# Remove original PPM files after conversion
+make clean-output
 ```
 
 ## Known Issues
 
 - Interactive viewer may have rendering lag on integrated GPUs
 - High iteration counts (>1024) can cause timeouts on some systems
-- PPM files are large; consider converting to PNG with ImageMagick
+- PPM files are large and saved to output/ directory; consider converting to PNG with ImageMagick
 - Display FPS can be misleading - use Benchmark Mode (B) for true performance metrics
-- Numerical precision limits become visible beyond 10^14 zoom
+- Numerical precision limits become visible beyond 10^14 zoom (pixelation)
 
 ## Project Structure
 
 ```
 fractal_engine.cu        - Core CUDA kernels and console app
 interactive_viewer.cpp   - OpenGL interactive interface with benchmark mode
-Makefile                 - Build system
+Makefile                 - Build system with output management
 README.md                - Project documentation
+output/                  - Generated PPM files and animations (auto-created)
 ```
+
+## Advanced Usage
+
+### Animation Generation
+Enable zoom animation generation during benchmark:
+```bash
+./fractal_console --animate  # Generates zoom sequence frames
+```
+
+### Custom Resolutions
+Run benchmarks at different resolutions:
+```bash
+./fractal_console --resolution 3840 2160  # 4K resolution
+./fractal_console --resolution 7680 4320  # 8K resolution
+```
+
+### Performance Analysis
+Get detailed performance metrics:
+```bash
+make run-benchmark       # Shows block size optimization results
+make check-deps          # Verify GPU detection and libraries
+```
+
+## Contributing
+
+This project demonstrates advanced CUDA programming techniques including:
+- Memory coalescing optimization
+- Thread block configuration tuning  
+- Early escape optimization algorithms
+- CUDA-OpenGL interoperability
+- Cross-platform GPU architecture detection
+- Performance measurement and analysis
+
+## License
+
+Academic project for educational purposes at Johns Hopkins University.
+
+## Acknowledgments
+
+- Johns Hopkins University Whiting School of Engineering
+- EN.605.617 Introduction to GPU Programming course
+- NVIDIA CUDA development community
