@@ -8,6 +8,10 @@ High-performance fractal rendering using CUDA with an interactive OpenGL viewer.
 **Course:** EN.605.617 - Introduction to GPU Programming  
 **Date:** November 2025  
 
+## Demo
+
+[![Watch the Demo](https://img.shields.io/badge/YouTube-Demo-red?logo=youtube)](https://youtu.be/nSteTBq1gIo)
+
 ## Features
 
 - Multiple fractal types: Mandelbrot, Julia, Burning Ship, Tricorn
@@ -238,5 +242,5 @@ Academic project for educational purposes at Johns Hopkins University.
 ## Acknowledgments
 
 - Johns Hopkins University Whiting School of Engineering
-- EN.605.617 Introduction to GPU Programming course
+- EN.605.617 Introduction to GPU Programming
 - NVIDIA CUDA development community
