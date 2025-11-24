@@ -111,13 +111,13 @@ private:
 public:
     // Constructor - initializes viewer with specified window dimensions
     // Default view: Mandelbrot set centered at (-0.5, 0), zoom 1.0, 256 iterations
-    InteractiveFractalViewer(int width, int height) 
+    InteractiveFractalViewer(int width, int height, bool start_benchmark = false, bool start_animate = false) 
         : window_width(width), window_height(height),
           x_center(-0.5), y_center(0.0), zoom(1.0),
           julia_cx(-0.7), julia_cy(0.27015),
           max_iterations(256), fractal_type(0), color_scheme(1),
           animation_time(0.0), mouse_dragging(false),
-          auto_animate(false), needs_update(true), benchmark_mode(false), fps(0.0f), frame_count(0) {
+          auto_animate(start_animate), needs_update(true), benchmark_mode(start_benchmark), fps(0.0f), frame_count(0) {
         
         initialize_opengl();
         initialize_cuda_gl_interop();
@@ -126,6 +126,15 @@ public:
         last_frame_time = std::chrono::high_resolution_clock::now();
         
         print_menu();
+        
+        if (start_benchmark) {
+            printf("\n*** BENCHMARK MODE ENABLED from command line ***\n");
+            printf("Showing COMPUTATIONAL FPS (forces recomputation every frame)\n\n");
+        }
+        if (start_animate) {
+            printf("\n*** AUTO-ANIMATION ENABLED from command line ***\n");
+            printf("Color animation active (press Space to toggle)\n\n");
+        }
     }
     
     ~InteractiveFractalViewer() {
@@ -254,13 +263,13 @@ public:
                 glfwSetWindowShouldClose(window, GLFW_TRUE);
                 break;
                 
-            case GLFW_KEY_1: fractal_type = 0; needs_update = true; printf("Key: 1 |Mandelbrot\n"); break;
-            case GLFW_KEY_2: fractal_type = 1; needs_update = true; printf("Key: 2 |Julia\n"); break;
-            case GLFW_KEY_3: fractal_type = 2; needs_update = true; printf("Key: 3 |Burning Ship\n"); break;
-            case GLFW_KEY_4: fractal_type = 3; needs_update = true; printf("Key: 4 |Tricorn\n"); break;
+            case GLFW_KEY_1: fractal_type = 0; needs_update = true; printf("Mandelbrot\n"); break;
+            case GLFW_KEY_2: fractal_type = 1; needs_update = true; printf("Julia\n"); break;
+            case GLFW_KEY_3: fractal_type = 2; needs_update = true; printf("Burning Ship\n"); break;
+            case GLFW_KEY_4: fractal_type = 3; needs_update = true; printf("Tricorn\n"); break;
             
-            case GLFW_KEY_0: max_iterations = 64; needs_update = true; printf("Key: 0 |Iterations: %d (min)\n", max_iterations); break;
-            case GLFW_KEY_9: max_iterations = 2048; needs_update = true; printf("Key: 9 |Iterations: %d (max)\n", max_iterations); break;
+            case GLFW_KEY_0: max_iterations = 64; needs_update = true; printf("Iterations: %d (min)\n", max_iterations); break;
+            case GLFW_KEY_9: max_iterations = 2048; needs_update = true; printf("Iterations: %d (max)\n", max_iterations); break;
             
             case GLFW_KEY_Q: color_scheme = 0; needs_update = true; printf("Key: Q | Color: GRAYSCALE\n"); break;
             case GLFW_KEY_W: color_scheme = 1; needs_update = true; printf("Key: W | Color: HSV_RAINBOW\n"); break;
@@ -273,24 +282,24 @@ public:
             case GLFW_KEY_KP_ADD:
                 max_iterations = std::min(2048, max_iterations + 64);
                 needs_update = true;
-                printf("Key: + | Iterations: %d\n", max_iterations);
+                printf("Iterations: %d\n", max_iterations);
                 break;
                 
             case GLFW_KEY_MINUS:
             case GLFW_KEY_KP_SUBTRACT:
                 max_iterations = std::max(64, max_iterations - 64);
                 needs_update = true;
-                printf("Key: - | Iterations: %d\n", max_iterations);
+                printf("Iterations: %d\n", max_iterations);
                 break;
                 
             case GLFW_KEY_SPACE:
                 auto_animate = !auto_animate;
-                printf("Key: Space | Animation: %s\n", auto_animate ? "ON" : "OFF");
+                printf("Animation: %s\n", auto_animate ? "ON" : "OFF");
                 break;
                 
             case GLFW_KEY_B:
                 benchmark_mode = !benchmark_mode;
-                printf("Key: B | Benchmark Mode: %s - Showing %s FPS\n", 
+                printf("Benchmark Mode: %s - Showing %s FPS\n", 
                        benchmark_mode ? "ON" : "OFF",
                        benchmark_mode ? "COMPUTATIONAL" : "DISPLAY");
                 if (benchmark_mode) {
@@ -306,19 +315,19 @@ public:
                 x_center = (fractal_type == 0 || fractal_type == 3) ? -0.5 : 0.0;
                 y_center = 0.0;
                 needs_update = true;
-                printf("Key: C | Centered\n");
+                printf("Centered\n");
                 break;
                 
             case GLFW_KEY_V:
                 zoom = 1.0;
                 needs_update = true;
-                printf("Key: V | Zoom reset\n");
+                printf("Zoom reset\n");
                 break;
                 
-            case GLFW_KEY_UP: y_center += 0.1 / zoom; needs_update = true; printf("Key: UP | Pan up\n"); break;
-            case GLFW_KEY_DOWN: y_center -= 0.1 / zoom; needs_update = true; printf("Key: DOWN | Pan down\n"); break;
-            case GLFW_KEY_LEFT: x_center -= 0.1 / zoom; needs_update = true; printf("Key: LEFT | Pan left\n"); break;
-            case GLFW_KEY_RIGHT: x_center += 0.1 / zoom; needs_update = true; printf("Key: RIGHT | Pan right\n"); break;
+            case GLFW_KEY_UP: y_center += 0.1 / zoom; needs_update = true; break;
+            case GLFW_KEY_DOWN: y_center -= 0.1 / zoom; needs_update = true; break;
+            case GLFW_KEY_LEFT: x_center -= 0.1 / zoom; needs_update = true; break;
+            case GLFW_KEY_RIGHT: x_center += 0.1 / zoom; needs_update = true; break;
             
             case GLFW_KEY_X:
                 // Full reset (keeps current fractal type and iterations)
@@ -333,20 +342,20 @@ public:
                 auto_animate = false;   // Turn off animation
                 animation_time = 0.0;   // Reset animation time
                 needs_update = true;
-                printf("Key: X | Reset view/colors/animation\n");
+                printf("Reset view/colors/animation\n");
                 break;
                 
             case GLFW_KEY_J:
-                if (fractal_type == 1) { julia_cx -= 0.01; needs_update = true; printf("Key: J | Param Julia\n");}
+                if (fractal_type == 1) { julia_cx -= 0.01; needs_update = true; }
                 break;
             case GLFW_KEY_L:
-                if (fractal_type == 1) { julia_cx += 0.01; needs_update = true; printf("Key: L | Param Julia\n");}
+                if (fractal_type == 1) { julia_cx += 0.01; needs_update = true; }
                 break;
             case GLFW_KEY_K:
-                if (fractal_type == 1) { julia_cy -= 0.01; needs_update = true;  printf("Key: K | Param Julia\n");}   
+                if (fractal_type == 1) { julia_cy -= 0.01; needs_update = true; }
                 break;
             case GLFW_KEY_I:
-                if (fractal_type == 1) { julia_cy += 0.01; needs_update = true; printf("Key: I | Param Julia\n");}
+                if (fractal_type == 1) { julia_cy += 0.01; needs_update = true; }
                 break;
         }
     }
@@ -534,15 +543,74 @@ public:
 // Main Entry Point
 // ============================================================================
 
+// Print usage information
+void print_usage(const char* program_name) {
+    printf("Usage: %s [options]\n", program_name);
+    printf("Options:\n");
+    printf("  --benchmark         Enable benchmark mode on startup (force recompute each frame)\n");
+    printf("  --animate           Enable automatic zoom animation on startup\n");
+    printf("  --resolution W H    Set window resolution (default: 1280x720)\n");
+    printf("                      W and H must be positive integers\n");
+    printf("  --help, -h          Show this help message\n");
+    printf("\nExamples:\n");
+    printf("  %s --resolution 1920 1080\n", program_name);
+    printf("  %s --benchmark --resolution 1920 1080\n", program_name);
+    printf("  %s --animate\n", program_name);
+}
+
 int main(int argc, char** argv) {
-    // Default window size
+    // Default settings
     int width = 1280, height = 720;
+    bool start_benchmark = false;
+    bool start_animate = false;
     
-    // Parse command line arguments for custom resolution
+    // Parse command line arguments
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--resolution") == 0 && i + 2 < argc) {
-            width = atoi(argv[++i]);
-            height = atoi(argv[++i]);
+        if (strcmp(argv[i], "--resolution") == 0) {
+            // Check if we have two more arguments
+            if (i + 2 >= argc) {
+                fprintf(stderr, "Error: --resolution requires two arguments (width height)\n");
+                print_usage(argv[0]);
+                return 1;
+            }
+            
+            // Parse width and height
+            width = atoi(argv[i + 1]);
+            height = atoi(argv[i + 2]);
+            
+            // Validate parsed values
+            if (width <= 0 || height <= 0) {
+                fprintf(stderr, "Error: Invalid resolution %dx%d. Width and height must be positive integers.\n", 
+                        width, height);
+                return 1;
+            }
+            
+            // Check reasonable bounds (optional but recommended)
+            if (width < 320 || height < 240) {
+                fprintf(stderr, "Error: Resolution too small. Minimum is 320x240.\n");
+                return 1;
+            }
+            if (width > 7680 || height > 4320) {
+                fprintf(stderr, "Warning: Resolution %dx%d is very large and may cause performance issues.\n",
+                        width, height);
+            }
+            
+            i += 2;  // Skip the next two arguments
+        }
+        else if (strcmp(argv[i], "--benchmark") == 0) {
+            start_benchmark = true;
+        }
+        else if (strcmp(argv[i], "--animate") == 0) {
+            start_animate = true;
+        }
+        else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
+            print_usage(argv[0]);
+            return 0;
+        }
+        else {
+            fprintf(stderr, "Error: Unknown argument '%s'\n", argv[i]);
+            print_usage(argv[0]);
+            return 1;
         }
     }
     
@@ -551,7 +619,7 @@ int main(int argc, char** argv) {
     
     try {
         // Create viewer and run main loop
-        InteractiveFractalViewer viewer(width, height);
+        InteractiveFractalViewer viewer(width, height, start_benchmark, start_animate);
         viewer.run();
     } catch (const std::exception& e) {
         fprintf(stderr, "Error: %s\n", e.what());

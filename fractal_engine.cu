@@ -371,6 +371,28 @@ void fractal_cpu(uchar3* image, int width, int height, FractalParams params) {
 
 #ifndef LIB_MODE
 
+// Print usage information
+void print_usage(const char* program_name) {
+    printf("Usage: %s [options]\n", program_name);
+    printf("Options:\n");
+    printf("  --benchmark         Run performance benchmarks (block sizes & precision comparison)\n");
+    printf("  --animate           Generate zoom animation frames\n");
+    printf("  --cpu-vs-gpu        Compare CPU vs GPU performance\n");
+    printf("  --resolution W H    Set image resolution (default: 1920x1080)\n");
+    printf("                      W and H must be positive integers\n");
+    printf("  --help, -h          Show this help message\n");
+    printf("\nExamples:\n");
+    printf("  %s                                    # Generate sample images\n", program_name);
+    printf("  %s --benchmark                        # Run benchmarks + generate samples\n", program_name);
+    printf("  %s --animate                          # Generate zoom animation\n", program_name);
+    printf("  %s --resolution 3840 2160             # 4K resolution\n", program_name);
+    printf("  %s --benchmark --resolution 1920 1080 # Benchmark at Full HD\n", program_name);
+    printf("\nOutput:\n");
+    printf("  - All files saved to: ./output/\n");
+    printf("  - Sample images: 24 PPM files (4 fractals × 6 color schemes)\n");
+    printf("  - Animation: 50 frames with progressive zoom levels\n");
+}
+
 // Main function
 int main(int argc, char** argv) {
     printf("=== CUDA Fractal Renderer ===\n\n");
@@ -379,15 +401,59 @@ int main(int argc, char** argv) {
     int width = 1920, height = 1080;
     bool run_benchmarks = false;
     bool generate_animation = false;
-    bool run_cpu_gpu_comparison = false;  
+    bool run_cpu_gpu_comparison = false;
+    
     // Parse command line arguments
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--benchmark") == 0) run_benchmarks = true;
-        else if (strcmp(argv[i], "--animate") == 0) generate_animation = true;
-        else if (strcmp(argv[i], "--cpu-vs-gpu") == 0) run_cpu_gpu_comparison = true;
-        else if (strcmp(argv[i], "--resolution") == 0 && i + 2 < argc) {
-            width = atoi(argv[++i]);
-            height = atoi(argv[++i]);
+        if (strcmp(argv[i], "--benchmark") == 0) {
+            run_benchmarks = true;
+        }
+        else if (strcmp(argv[i], "--animate") == 0) {
+            generate_animation = true;
+        }
+        else if (strcmp(argv[i], "--cpu-vs-gpu") == 0) {
+            run_cpu_gpu_comparison = true;
+        }
+        else if (strcmp(argv[i], "--resolution") == 0) {
+            // Check if we have two more arguments
+            if (i + 2 >= argc) {
+                fprintf(stderr, "Error: --resolution requires two arguments (width height)\n");
+                print_usage(argv[0]);
+                return 1;
+            }
+            
+            // Parse width and height
+            width = atoi(argv[i + 1]);
+            height = atoi(argv[i + 2]);
+            
+            // Validate parsed values
+            if (width <= 0 || height <= 0) {
+                fprintf(stderr, "Error: Invalid resolution %dx%d. Width and height must be positive integers.\n", 
+                        width, height);
+                fprintf(stderr, "       Received arguments: '%s' '%s'\n", argv[i + 1], argv[i + 2]);
+                return 1;
+            }
+            
+            // Check reasonable bounds
+            if (width < 320 || height < 240) {
+                fprintf(stderr, "Error: Resolution too small. Minimum is 320x240.\n");
+                return 1;
+            }
+            if (width > 7680 || height > 4320) {
+                fprintf(stderr, "Warning: Resolution %dx%d is very large and may cause performance issues or memory errors.\n",
+                        width, height);
+            }
+            
+            i += 2;  // Skip the next two arguments
+        }
+        else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
+            print_usage(argv[0]);
+            return 0;
+        }
+        else {
+            fprintf(stderr, "Error: Unknown argument '%s'\n", argv[i]);
+            print_usage(argv[0]);
+            return 1;
         }
     }
     
@@ -539,7 +605,7 @@ int main(int argc, char** argv) {
     // Generate zoom animation
     if (generate_animation) {
         printf("\n=== Generating Zoom Animation ===\n");
-        generate_zoom_animation("fractal_zoom", width/2, height/2, 
+        generate_zoom_animation("fractal_zoom", width, height, 
                                -0.7453, 0.11307, 50);
     }
     
@@ -548,7 +614,7 @@ int main(int argc, char** argv) {
     CUDA_CHECK(cudaFree(d_image));
     
     printf("\n=== Rendering Complete! ===\n");
-    printf("Usage: %s [--benchmark] [--animate] [--resolution W H]\n", argv[0]);
+    printf("Run '%s --help' for usage information\n", argv[0]);
     
     return 0;
 }
